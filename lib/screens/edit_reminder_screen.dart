@@ -4,7 +4,6 @@ import '../models/reminder.dart';
 import '../state/reminder_controller.dart';
 import 'package:uuid/uuid.dart';
 
-
 class EditReminderScreen extends StatefulWidget {
   final Reminder? existing;
 
@@ -17,6 +16,8 @@ class EditReminderScreen extends StatefulWidget {
 class _EditReminderScreenState extends State<EditReminderScreen> {
   final _formKey = GlobalKey<FormState>();
   final _uuid = const Uuid();
+  ReminderFrequency _frequency = ReminderFrequency.once;
+  final TextEditingController _customDaysCtrl = TextEditingController();
 
   late TextEditingController _titleCtrl;
   late TextEditingController _descCtrl;
@@ -29,6 +30,9 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.existing != null) {
+      _frequency = widget.existing!.frequency;
+    }
 
     if (isEditing) {
       final r = widget.existing!;
@@ -86,13 +90,20 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
 
     if (isEditing) {
       final orig = widget.existing!;
+
       final updated = Reminder(
         id: orig.id,
         title: _titleCtrl.text.trim(),
         description: _descCtrl.text.trim(),
         dateTime: combinedDateTime,
         status: orig.status,
+
+        frequency: _frequency,
+        customIntervalDays: _frequency == ReminderFrequency.custom
+            ? int.tryParse(_customDaysCtrl.text)
+            : null,
       );
+
       controller.updateReminder(updated);
     } else {
       final newR = Reminder(
@@ -100,7 +111,13 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
         title: _titleCtrl.text.trim(),
         description: _descCtrl.text.trim(),
         dateTime: combinedDateTime,
+
+        frequency: _frequency,
+        customIntervalDays: _frequency == ReminderFrequency.custom
+            ? int.tryParse(_customDaysCtrl.text)
+            : null,
       );
+
       controller.addReminder(newR);
     }
 
@@ -122,9 +139,7 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
             children: [
               TextFormField(
                 controller: _titleCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Título',
-                ),
+                decoration: const InputDecoration(labelText: 'Título'),
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Ingresa un título' : null,
               ),
@@ -132,9 +147,7 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
 
               TextFormField(
                 controller: _descCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción',
-                ),
+                decoration: const InputDecoration(labelText: 'Descripción'),
                 maxLines: 3,
               ),
 
@@ -155,13 +168,48 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
                       ),
                     ),
                   ),
+
                   const SizedBox(width: 12),
+
+                  Expanded(
+                    child: DropdownButtonFormField<ReminderFrequency>(
+                      value: _frequency,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Frecuencia',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: ReminderFrequency.once,
+                          child: Text('Único'),
+                        ),
+                        DropdownMenuItem(
+                          value: ReminderFrequency.daily,
+                          child: Text('Diario'),
+                        ),
+                        DropdownMenuItem(
+                          value: ReminderFrequency.weekly,
+                          child: Text('Semanal'),
+                        ),
+                        DropdownMenuItem(
+                          value: ReminderFrequency.custom,
+                          child: Text('Personalizado (cada X días)'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => _frequency = value);
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
                   Expanded(
                     child: OutlinedButton(
                       onPressed: _pickTime,
-                      child: Text(
-                        _selectedTime.format(context),
-                      ),
+                      child: Text(_selectedTime.format(context)),
                     ),
                   ),
                 ],
@@ -172,7 +220,9 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _save,
-                  child: Text(isEditing ? 'Guardar cambios' : 'Crear recordatorio'),
+                  child: Text(
+                    isEditing ? 'Guardar cambios' : 'Crear recordatorio',
+                  ),
                 ),
               ),
             ],

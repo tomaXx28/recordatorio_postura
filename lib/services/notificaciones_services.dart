@@ -80,33 +80,56 @@ Future<void> testScheduleBasic() async {
 }
 
 
-
   Future<void> scheduleReminder(Reminder reminder) async {
-    print("📌 AGENDANDO NOTI PARA: ${reminder.dateTime}");
+  final date = reminder.dateTime;
 
-    final androidDetails = AndroidNotificationDetails(
-      channelId,
-      "Recordatorios de postura",
-      channelDescription: "Recordatorios programados por la app",
-      importance: Importance.high,
-      priority: Priority.high,
-    );
+  final androidDetails = AndroidNotificationDetails(
+    channelId,
+    'Recordatorios de postura',
+    channelDescription: 'Recordatorios creados en la app',
+    importance: Importance.high,
+    priority: Priority.high,
+  );
 
-    final notificationDetails = NotificationDetails(
-      android: androidDetails,
-    );
+  final notificationDetails = NotificationDetails(
+    android: androidDetails,
+  );
 
-    await _plugin.zonedSchedule(
-      reminder.hashCode,
-      reminder.title,
-      reminder.description,
-      tz.TZDateTime.from(reminder.dateTime, tz.local),
-      notificationDetails,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-    );
+  final tzDate = tz.TZDateTime.from(date, tz.local);
+
+  //  definimos cómo se repite según la frecuencia
+  DateTimeComponents? matchComponents;
+
+  switch (reminder.frequency) {
+    case ReminderFrequency.once:
+      matchComponents = null; // solo una vez
+      break;
+    case ReminderFrequency.daily:
+      matchComponents = DateTimeComponents.time; // todos los días a la misma hora
+      break;
+    case ReminderFrequency.weekly:
+      matchComponents =
+          DateTimeComponents.dayOfWeekAndTime; // mismo día de la semana y hora
+      break;
+    case ReminderFrequency.custom:
+      // Por ahora lo tratamos como diario,  afinamos el "cada X días"
+      matchComponents = DateTimeComponents.time;
+      break;
   }
+
+  await _plugin.zonedSchedule(
+    reminder.hashCode,
+    reminder.title,
+    reminder.description,
+    tzDate,
+    notificationDetails,
+    androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+    uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+    matchDateTimeComponents: matchComponents,
+  );
+}
+
 
   Future<void> cancelReminder(Reminder reminder) async {
     await _plugin.cancel(reminder.hashCode);
