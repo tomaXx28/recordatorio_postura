@@ -60,7 +60,7 @@ class Reminder {
   final String id;
   final String title;
   final String description;
-  final DateTime dateTime;
+   DateTime dateTime;
   ReminderStatus status;
   ReminderFrequency frequency;
   int? customIntervalDays;

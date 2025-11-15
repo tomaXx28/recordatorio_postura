@@ -214,7 +214,27 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
                   ),
                 ],
               ),
-
+              if (_frequency == ReminderFrequency.custom) ...[
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _customDaysCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Cada cuántos días',
+                    border: OutlineInputBorder(),
+                    hintText: 'Ej: 3 (se repetirá cada 3 días)',
+                  ),
+                  validator: (v) {
+                    if (_frequency != ReminderFrequency.custom) return null;
+                    if (v == null || v.trim().isEmpty)
+                      return 'Ingresa un número';
+                    if (int.tryParse(v) == null || int.parse(v) <= 0) {
+                      return 'Debe ser un número válido';
+                    }
+                    return null;
+                  },
+                ),
+              ],
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,

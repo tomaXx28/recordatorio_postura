@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:recordatorios_postura/main.dart' show navigatorKey;
 import '../models/reminder.dart';
+import '../state/reminder_controller.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:provider/provider.dart';
+import 'package:collection/collection.dart';
+
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -22,11 +27,9 @@ class NotificationService {
     );
 
     await _plugin.initialize(
-  initSettings,
-  onDidReceiveNotificationResponse: (details) {
-    print("🔔 NOTIFICACIÓN DISPARADA: ${details.payload}");
-  },
-);
+      initSettings,
+      onDidReceiveNotificationResponse: _onNotificationTap,
+    );
 
     // Permiso para Android 13+
     await _plugin
@@ -35,101 +38,121 @@ class NotificationService {
         ?.requestNotificationsPermission();
   }
 
-  Future<void> testInstant() async {
-  final android = AndroidNotificationDetails(
-    channelId,
-    'Test canal',
-    channelDescription: 'Prueba inmediata',
-    importance: Importance.high,
-    priority: Priority.high,
-  );
+  // --------------------------------------------------------------------------
+  // 🔥 Este método es CLAVE: se ejecuta cuando una notificación suena o se toca
+  // --------------------------------------------------------------------------
+  static Future<void> _onNotificationTap(NotificationResponse details) async {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
 
-  await _plugin.show(
-    999,
-    'Test instantáneo',
-    'Si ves esto, el sistema funciona',
-    NotificationDetails(android: android),
-  );
-}
-
-Future<void> testScheduleBasic() async {
-  final now = DateTime.now().add(const Duration(minutes: 1));
-
-  print("⏱ PROGRAMANDO TEST BASICO PARA: $now");
-
-  final androidDetails = AndroidNotificationDetails(
-    channelId,
-    "Prueba básica",
-    channelDescription: "Test sin TZ",
-    importance: Importance.high,
-    priority: Priority.high,
-  );
-
-  final notificationDetails = NotificationDetails(android: androidDetails);
-
-  await _plugin.zonedSchedule(
-    321, // id fijo para esta prueba
-    "Notificación de test",
-    "Si ves esto, la programación básica funciona",
-    tz.TZDateTime.from(now, tz.local),
-    notificationDetails,
-    androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-    uiLocalNotificationDateInterpretation:
-        UILocalNotificationDateInterpretation.absoluteTime,
-  );
-}
+    final controller = context.read<ReminderController>();
+    final reminder = controller.reminders.firstWhereOrNull(
+  (r) => r.hashCode == details.id,
+);
 
 
-  Future<void> scheduleReminder(Reminder reminder) async {
-  final date = reminder.dateTime;
+    if (reminder == null) return;
 
-  final androidDetails = AndroidNotificationDetails(
-    channelId,
-    'Recordatorios de postura',
-    channelDescription: 'Recordatorios creados en la app',
-    importance: Importance.high,
-    priority: Priority.high,
-  );
+    // Si es frecuencia personalizada → reprogramar automáticamente
+    if (reminder.frequency == ReminderFrequency.custom) {
+      final interval = reminder.customIntervalDays ?? 1;
 
-  final notificationDetails = NotificationDetails(
-    android: androidDetails,
-  );
+      // nueva fecha sumando X días
+      reminder.dateTime = reminder.dateTime.add(Duration(days: interval));
 
-  final tzDate = tz.TZDateTime.from(date, tz.local);
+      // guardar cambios
+      await controller.updateReminder(reminder);
 
-  //  definimos cómo se repite según la frecuencia
-  DateTimeComponents? matchComponents;
-
-  switch (reminder.frequency) {
-    case ReminderFrequency.once:
-      matchComponents = null; // solo una vez
-      break;
-    case ReminderFrequency.daily:
-      matchComponents = DateTimeComponents.time; // todos los días a la misma hora
-      break;
-    case ReminderFrequency.weekly:
-      matchComponents =
-          DateTimeComponents.dayOfWeekAndTime; // mismo día de la semana y hora
-      break;
-    case ReminderFrequency.custom:
-      // Por ahora lo tratamos como diario,  afinamos el "cada X días"
-      matchComponents = DateTimeComponents.time;
-      break;
+      // volver a programar la notificación
+      await NotificationService().scheduleReminder(reminder);
+    }
   }
 
-  await _plugin.zonedSchedule(
-    reminder.hashCode,
-    reminder.title,
-    reminder.description,
-    tzDate,
-    notificationDetails,
-    androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-    uiLocalNotificationDateInterpretation:
-        UILocalNotificationDateInterpretation.absoluteTime,
-    matchDateTimeComponents: matchComponents,
-  );
-}
+  // --------------------------------------------------------------------------
+  DateTime getNextCustomDate(Reminder reminder) {
+    final interval = reminder.customIntervalDays;
 
+    if (interval == null || interval <= 0) {
+      return reminder.dateTime;
+    }
+
+    final now = DateTime.now();
+    DateTime next = reminder.dateTime;
+
+    while (next.isBefore(now)) {
+      next = next.add(Duration(days: interval));
+    }
+
+    return next;
+  }
+
+  // --------------------------------------------------------------------------
+  Future<void> scheduleReminder(Reminder reminder) async {
+    final androidDetails = AndroidNotificationDetails(
+      channelId,
+      'Recordatorios de postura',
+      channelDescription: 'Recordatorios creados en la app',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+
+    final notificationDetails = NotificationDetails(android: androidDetails);
+
+    // Frecuencias normales
+    switch (reminder.frequency) {
+      case ReminderFrequency.once:
+        return _plugin.zonedSchedule(
+          reminder.hashCode,
+          reminder.title,
+          reminder.description,
+          tz.TZDateTime.from(reminder.dateTime, tz.local),
+          notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+
+      case ReminderFrequency.daily:
+        return _plugin.zonedSchedule(
+          reminder.hashCode,
+          reminder.title,
+          reminder.description,
+          tz.TZDateTime.from(reminder.dateTime, tz.local),
+          notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          matchDateTimeComponents: DateTimeComponents.time,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+
+      case ReminderFrequency.weekly:
+        return _plugin.zonedSchedule(
+          reminder.hashCode,
+          reminder.title,
+          reminder.description,
+          tz.TZDateTime.from(reminder.dateTime, tz.local),
+          notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+
+      case ReminderFrequency.custom:
+        final next = getNextCustomDate(reminder);
+
+        return _plugin.zonedSchedule(
+          reminder.hashCode,
+          reminder.title,
+          reminder.description,
+          tz.TZDateTime.from(next, tz.local),
+          notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+    }
+  }
 
   Future<void> cancelReminder(Reminder reminder) async {
     await _plugin.cancel(reminder.hashCode);

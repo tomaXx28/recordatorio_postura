@@ -7,6 +7,7 @@ import 'app.dart';
 import 'firebase_options.dart';
 import 'services/notificaciones_services.dart'; // o el nombre real del archivo
 
+ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -21,6 +22,7 @@ void main() async {
 
   // 3) Notificaciones
   await NotificationService().init();
+
 
   // 4) Correr app
   runApp(const PostureRemindersApp());
