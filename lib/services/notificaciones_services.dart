@@ -7,7 +7,6 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
 
-
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
@@ -38,37 +37,56 @@ class NotificationService {
         ?.requestNotificationsPermission();
   }
 
-  // --------------------------------------------------------------------------
-  // 🔥 Este método es CLAVE: se ejecuta cuando una notificación suena o se toca
-  // --------------------------------------------------------------------------
+  
+  //  ACCIONES DE NOTIFICACIÓN: COMPLETAR / APLAZAR / PERSONALIZADO
+ 
   static Future<void> _onNotificationTap(NotificationResponse details) async {
     final context = navigatorKey.currentContext;
     if (context == null) return;
 
     final controller = context.read<ReminderController>();
-    final reminder = controller.reminders.firstWhereOrNull(
-  (r) => r.hashCode == details.id,
-);
 
+    final reminder = controller.reminders.firstWhereOrNull(
+      (r) => r.hashCode == details.id,
+    );
 
     if (reminder == null) return;
 
-    // Si es frecuencia personalizada → reprogramar automáticamente
+  
+    //  BOTÓN: COMPLETAR
+  
+    if (details.actionId == 'complete_action') {
+      reminder.status = ReminderStatus.completed;
+      await controller.updateReminder(reminder);
+      return;
+    }
+
+    
+    // BOTÓN: APLAZAR 5 MIN
+    
+    if (details.actionId == 'snooze_action') {
+      reminder.dateTime = DateTime.now().add(const Duration(minutes: 5));
+      await controller.updateReminder(reminder);
+      await NotificationService().scheduleReminder(reminder);
+      return;
+    }
+
+    
+    //  FRECUENCIA PERSONALIZADA: CADA X DÍAS
+    
     if (reminder.frequency == ReminderFrequency.custom) {
       final interval = reminder.customIntervalDays ?? 1;
 
-      // nueva fecha sumando X días
       reminder.dateTime = reminder.dateTime.add(Duration(days: interval));
 
-      // guardar cambios
       await controller.updateReminder(reminder);
-
-      // volver a programar la notificación
       await NotificationService().scheduleReminder(reminder);
     }
   }
 
-  // --------------------------------------------------------------------------
+
+  //  Calcula la próxima fecha según intervalo personalizado
+
   DateTime getNextCustomDate(Reminder reminder) {
     final interval = reminder.customIntervalDays;
 
@@ -86,7 +104,8 @@ class NotificationService {
     return next;
   }
 
-  // --------------------------------------------------------------------------
+  //  PROGRAMA LA NOTIFICACIÓN SEGÚN LA FRECUENCIA
+  
   Future<void> scheduleReminder(Reminder reminder) async {
     final androidDetails = AndroidNotificationDetails(
       channelId,
@@ -94,6 +113,20 @@ class NotificationService {
       channelDescription: 'Recordatorios creados en la app',
       importance: Importance.high,
       priority: Priority.high,
+
+
+      actions: const [
+        AndroidNotificationAction(
+          'complete_action',
+          'Completar',
+          showsUserInterface: true,
+        ),
+        AndroidNotificationAction(
+          'snooze_action',
+          'Aplazar 5 min',
+          showsUserInterface: true,
+        ),
+      ],
     );
 
     final notificationDetails = NotificationDetails(android: androidDetails);
@@ -153,6 +186,7 @@ class NotificationService {
         );
     }
   }
+
 
   Future<void> cancelReminder(Reminder reminder) async {
     await _plugin.cancel(reminder.hashCode);
