@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "743816422249",
+    "project_id": "app-postura-7bb04",
+    "storage_bucket": "app-postura-7bb04.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:743816422249:android:130dcdc5987b687ae3d3f8",
+        "android_client_info": {
+          "package_name": "com.example.app_postura"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAyvDS1G5bNifWX-EAiYQGUBBlrtEGCn0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:743816422249:android:84a1e4fe037a0bc6e3d3f8",
+        "android_client_info": {
+          "package_name": "com.example.recordatorios_postura"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAyvDS1G5bNifWX-EAiYQGUBBlrtEGCn0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:743816422249:android:2bbd004718274544e3d3f8",
+        "android_client_info": {
+          "package_name": "com.tomasolea.app_postura"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAyvDS1G5bNifWX-EAiYQGUBBlrtEGCn0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

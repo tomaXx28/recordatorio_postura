@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'app-postura-7bb04.firebasestorage.app',
     measurementId: 'G-NZ5GEV40MY',
   );
+
 }
