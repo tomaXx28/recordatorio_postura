@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:recordatorios_postura/screens/edit_reminder_screen.dart';
+import 'package:recordatorios_postura/models/reminder.dart';
 
-import '../state/reminder_controller.dart';
-import '../models/reminder.dart';
+import 'package:recordatorios_postura/screens/edit_reminder_screen.dart';
+import 'package:recordatorios_postura/state/reminder_controller.dart';
+import 'package:recordatorios_postura/utils/filter_button.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -15,32 +16,60 @@ class HomeScreen extends StatelessWidget {
         title: const Text('Recordatorios de postura'),
         centerTitle: true,
       ),
-
       body: Consumer<ReminderController>(
         builder: (context, controller, _) {
-          final reminders = controller.reminders;
+          // OJO: usamos la lista filtrada
+          final reminders = controller.filteredReminders;
 
-          if (reminders.isEmpty) {
-            return const _EmptyState();
-          }
-
-          return ListView.separated(
+          return Padding(
             padding: const EdgeInsets.all(16),
-            itemCount: reminders.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final reminder = reminders[index];
-              return _ReminderTile(reminder: reminder);
-            },
+            child: Column(
+              children: [
+                // --------------------
+                // FILTROS
+                // --------------------
+               Wrap(
+  spacing: 8,
+  runSpacing: 8,
+  alignment: WrapAlignment.center,
+  children: const [
+    FilterButton(text: "Todos", filter: ReminderFilter.all),
+    FilterButton(text: "Pendientes", filter: ReminderFilter.pending),
+    FilterButton(text: "Completados", filter: ReminderFilter.completed),
+    FilterButton(text: "Omitidos", filter: ReminderFilter.skipped),
+  ],
+),
+
+                const SizedBox(height: 16),
+
+                // --------------------
+                // LISTA FILTRADA
+                // --------------------
+                Expanded(
+                  child: reminders.isEmpty
+                      ? const _EmptyState()
+                      : ListView.separated(
+                          itemCount: reminders.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (_, index) {
+                            final reminder = reminders[index];
+                            return _ReminderTile(reminder: reminder);
+                          },
+                        ),
+                ),
+              ],
+            ),
           );
         },
       ),
-
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const EditReminderScreen()),
+            MaterialPageRoute(
+              builder: (_) => const EditReminderScreen(),
+            ),
           );
         },
         label: const Text('Nuevo recordatorio'),
@@ -50,6 +79,9 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
+// ----------------------------------------------------------
+// ITEM DE LA LISTA
+// ----------------------------------------------------------
 class _ReminderTile extends StatelessWidget {
   final Reminder reminder;
 
@@ -104,21 +136,24 @@ class _ReminderTile extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     '${reminder.dateTime}',
-                    style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
             ),
 
-            // Menú
+            // Menú (eliminar)
             PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'delete') {
                   _confirmDelete(context);
                 }
               },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
+              itemBuilder: (context) => const [
+                PopupMenuItem(
                   value: 'delete',
                   child: Row(
                     children: [
@@ -152,7 +187,9 @@ class _ReminderTile extends StatelessWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
-              context.read<ReminderController>().deleteReminder(reminder.id);
+              context
+                  .read<ReminderController>()
+                  .deleteReminder(reminder.id);
               Navigator.pop(context);
             },
             child: const Text('Eliminar'),
@@ -163,6 +200,9 @@ class _ReminderTile extends StatelessWidget {
   }
 }
 
+// ----------------------------------------------------------
+// ESTADO VACÍO
+// ----------------------------------------------------------
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
@@ -173,27 +213,19 @@ class _EmptyState extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 32.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.accessibility_new, size: 72),
-            const SizedBox(height: 16),
-            const Text(
+          children: const [
+            Icon(Icons.accessibility_new, size: 72),
+            SizedBox(height: 16),
+            Text(
               'Aún no tienes recordatorios',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               'Crea tu primer recordatorio para ayudarte a mantener una mejor postura durante el día.',
               style: TextStyle(fontSize: 14),
               textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () {
-                // Luego abrirá la pantalla de nuevo recordatorio.
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Crear recordatorio'),
             ),
           ],
         ),
