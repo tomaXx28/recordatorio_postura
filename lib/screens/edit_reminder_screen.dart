@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/reminder.dart';
 import '../state/reminder_controller.dart';
 import 'package:uuid/uuid.dart';
+import 'package:recordatorios_postura/data/posturas.dart';
 
 class EditReminderScreen extends StatefulWidget {
   final Reminder? existing;
@@ -18,6 +19,7 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
   final _uuid = const Uuid();
   ReminderFrequency _frequency = ReminderFrequency.once;
   final TextEditingController _customDaysCtrl = TextEditingController();
+  PosturaItem? _posturaSeleccionada;
 
   late TextEditingController _titleCtrl;
   late TextEditingController _descCtrl;
@@ -137,6 +139,29 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Selección de postura predefinida
+              DropdownButtonFormField<PosturaItem>(
+                value: _posturaSeleccionada,
+                decoration: const InputDecoration(
+                  labelText: "Seleccionar postura (opcional)",
+                  border: OutlineInputBorder(),
+                ),
+                items: ListaPosturas.items
+                    .map(
+                      (p) => DropdownMenuItem(value: p, child: Text(p.titulo)),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _posturaSeleccionada = value;
+                    _titleCtrl.text = value.titulo;
+                    _descCtrl.text = value.descripcion;
+                  });
+                },
+              ),
+              const SizedBox(height: 20),
+
               TextFormField(
                 controller: _titleCtrl,
                 decoration: const InputDecoration(labelText: 'Título'),
