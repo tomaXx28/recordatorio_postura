@@ -4,7 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/reminder.dart';
 import '../state/reminder_controller.dart';
-import '../data/posturas.dart'; // 👈 IMPORTANTE PARA AUTOCOMPLETAR
+import '../data/posturas.dart';
 
 class EditReminderScreen extends StatefulWidget {
   final Reminder? existing;
@@ -22,24 +22,29 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
   late TextEditingController _descCtrl;
   DateTime? _selectedDateTime;
 
+  //  frecuencia y días personalizados
+  ReminderFrequency _frequency = ReminderFrequency.once;
+  int _customDays = 1;
+
   bool get isEditing => widget.existing != null;
 
   @override
   void initState() {
     super.initState();
 
-    // 🔥🔥🔥 AUTOCOMPLETADO restaurado AQUÍ 🔥🔥🔥
     if (isEditing) {
-      // MODO EDICIÓN → respetar valores existentes
       _titleCtrl = TextEditingController(text: widget.existing!.title);
       _descCtrl = TextEditingController(text: widget.existing!.description);
       _selectedDateTime = widget.existing!.dateTime;
+      _frequency = widget.existing!.frequency;
+      _customDays = widget.existing!.customIntervalDays ?? 1;
     } else {
-      // MODO NUEVO → usar postura predefinida (primer item)
       final postura = ListaPosturas.items.first;
       _titleCtrl = TextEditingController(text: postura.titulo);
       _descCtrl = TextEditingController(text: postura.descripcion);
       _selectedDateTime = DateTime.now();
+      _frequency = ReminderFrequency.once;
+      _customDays = 1;
     }
   }
 
@@ -122,6 +127,9 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
       description: _descCtrl.text.trim(),
       dateTime: _selectedDateTime!,
       status: widget.existing?.status ?? ReminderStatus.pending,
+      frequency: _frequency,
+      customIntervalDays:
+          _frequency == ReminderFrequency.custom ? _customDays : null,
     );
 
     if (isEditing) {
@@ -139,7 +147,6 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F4F7),
-
       appBar: AppBar(
         title: Text(
           titleText,
@@ -149,23 +156,14 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
         elevation: 3,
         backgroundColor: Colors.white,
       ),
-
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Form(
             key: _formKey,
-
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // -----------------------------------
-                // TÍTULO
-                // -----------------------------------
-
-                // -----------------------------------
-                // SELECCIÓN DE POSTURA
-                // -----------------------------------
                 const Text(
                   'Selecciona una postura',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
@@ -232,10 +230,6 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
                 ),
 
                 const SizedBox(height: 25),
-
-                // -----------------------------------
-                // DESCRIPCIÓN
-                // -----------------------------------
                 const Text(
                   'Descripción (opcional)',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
@@ -258,11 +252,84 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 25),
 
-                // -----------------------------------
-                // FECHA Y HORA
-                // -----------------------------------
+                //  FRECUENCIA
+                const Text(
+                  'Frecuencia',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 10),
+
+                DropdownButtonFormField<ReminderFrequency>(
+                  value: _frequency,
+                  items: const [
+                    DropdownMenuItem(
+                      value: ReminderFrequency.once,
+                      child: Text("Una vez"),
+                    ),
+                    DropdownMenuItem(
+                      value: ReminderFrequency.daily,
+                      child: Text("Diario"),
+                    ),
+                    DropdownMenuItem(
+                      value: ReminderFrequency.weekly,
+                      child: Text("Semanal"),
+                    ),
+                    DropdownMenuItem(
+                      value: ReminderFrequency.custom,
+                      child: Text("Personalizado (cada N días)"),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _frequency = value);
+                  },
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+
+                if (_frequency == ReminderFrequency.custom) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Text(
+                        "Cada ",
+                        style: TextStyle(fontSize: 18),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.all(12),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            hintText: 'Número de días',
+                          ),
+                          onChanged: (v) {
+                            _customDays = int.tryParse(v) ?? 1;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        "días",
+                        style: TextStyle(fontSize: 18),
+                      ),
+                    ],
+                  ),
+                ],
+
+                const SizedBox(height: 30),
                 const Text(
                   'Fecha y hora',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
@@ -281,12 +348,10 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.grey.shade300),
                     ),
-
                     child: Row(
                       children: [
                         const Icon(Icons.access_time, size: 30),
                         const SizedBox(width: 16),
-
                         Expanded(
                           child: Text(
                             _formatDateTime(_selectedDateTime),
@@ -296,7 +361,6 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
                             ),
                           ),
                         ),
-
                         const Icon(Icons.edit, size: 26),
                       ],
                     ),
@@ -304,10 +368,6 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
                 ),
 
                 const SizedBox(height: 40),
-
-                // -----------------------------------
-                // BOTÓN GUARDAR
-                // -----------------------------------
                 SizedBox(
                   width: double.infinity,
                   height: 60,
@@ -328,7 +388,6 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 30),
               ],
             ),

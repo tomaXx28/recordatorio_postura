@@ -18,9 +18,6 @@ class NotificationService {
 
   static const String channelId = "recordatorios_postura_channel";
 
-  // ---------------------------------------------
-  // INIT
-  // ---------------------------------------------
   Future<void> init() async {
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
@@ -33,7 +30,6 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onTap,
     );
 
-    // Android 13+ permission
     await _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
@@ -41,9 +37,7 @@ class NotificationService {
         ?.requestNotificationsPermission();
   }
 
-  // ---------------------------------------------
   // TAP EN NOTIFICACIÓN / ACCIONES
-  // ---------------------------------------------
   static Future<void> _onTap(NotificationResponse details) async {
     
     final context = navigatorKey.currentContext;
@@ -81,9 +75,7 @@ class NotificationService {
     }
   }
 
-  // ---------------------------------------------
   // CALCULAR PRÓXIMA FECHA PERSONALIZADA
-  // ---------------------------------------------
   DateTime getNextCustom(Reminder r) {
     final interval = r.customIntervalDays ?? 1;
     DateTime next = r.dateTime;
@@ -95,21 +87,20 @@ class NotificationService {
     return next;
   }
 
-  // ---------------------------------------------
+  
   // PROGRAMAR NOTIFICACIÓN
-  // ---------------------------------------------
   Future<void> schedule(Reminder reminder) async {
 
-     // ⛔🚫 EVITAR CRASH: no programamos notificación si la fecha ya pasó
+  
   if (reminder.dateTime.isBefore(DateTime.now())) {
-    print("⛔ Recordatorio con fecha pasada: no se programa notificación");
+    print(" Recordatorio con fecha pasada: no se programa notificación");
     return;
   }
-    print("----- PROGRAMANDO NOTIFICACIÓN -----");
+    print("programando noti");
     print("Ahora: ${DateTime.now()}");
     print("Recordatorio: ${reminder.dateTime}");
-    print("TZ Ahora: ${tz.TZDateTime.now(tz.local)}");
-    print("TZ Programada: ${tz.TZDateTime.from(reminder.dateTime, tz.local)}");
+    print(" Ahora: ${tz.TZDateTime.now(tz.local)}");
+    print(" Programada: ${tz.TZDateTime.from(reminder.dateTime, tz.local)}");
     final androidDetails = AndroidNotificationDetails(
       channelId,
       'Recordatorios de postura',
@@ -132,7 +123,6 @@ class NotificationService {
 
     final details = NotificationDetails(android: androidDetails);
 
-    // Usamos SOLO inexactAllowWhileIdle (estable, sin permisos extra)
     final scheduleMode = AndroidScheduleMode.inexactAllowWhileIdle;
 
     switch (reminder.frequency) {
@@ -190,7 +180,7 @@ class NotificationService {
     }
   }
 
-  // ---------------------------------------------
+
   Future<void> cancel(Reminder reminder) async {
     await _plugin.cancel(reminder.hashCode);
   }

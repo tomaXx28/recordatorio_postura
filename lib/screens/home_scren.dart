@@ -29,7 +29,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ReminderEvaluator.evaluate(context);
     });
 
-    // ⏱ iniciar timer cada 30 segundos
+    // iniciar timer cada 30 segundos
     evaluatorTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       ReminderEvaluator.evaluate(context);
     });
@@ -38,11 +38,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    evaluatorTimer?.cancel(); // ⛔ importante
+    evaluatorTimer?.cancel();
     super.dispose();
   }
 
-  // 👇 AQUI SE ACTIVA EL POPUP AL VOLVER A LA APP
+  // SE ACTIVA EL POPUP AL VOLVER A LA APP
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -54,7 +54,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F4F7),
-
       appBar: AppBar(
         title: const Text(
           'Recordatorios de postura',
@@ -79,7 +78,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
-
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: Colors.blueAccent,
         icon: const Icon(Icons.add, size: 28),
@@ -94,7 +92,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           );
         },
       ),
-
       body: Consumer<ReminderController>(
         builder: (context, controller, _) {
           final reminders = controller.filteredReminders;
@@ -123,9 +120,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 20),
-
                 Expanded(
                   child: reminders.isEmpty
                       ? const _EmptyState()
@@ -172,11 +167,9 @@ class _ReminderCard extends StatelessWidget {
           ),
         ],
       ),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// FILA SUPERIOR (hora + badge + menú)
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -188,10 +181,7 @@ class _ReminderCard extends StatelessWidget {
                   color: Colors.black87,
                 ),
               ),
-
               const Spacer(),
-
-              /// BADGE
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -210,10 +200,7 @@ class _ReminderCard extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(width: 8),
-
-              /// MENÚ EDITAR / ELIMINAR
               PopupMenuButton<String>(
                 onSelected: (value) {
                   if (value == 'edit') {
@@ -252,31 +239,44 @@ class _ReminderCard extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 10),
-
-          /// TÍTULO
           Text(
             reminder.title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-
           const SizedBox(height: 6),
-
           Text(
             _formatFecha(reminder.dateTime),
-            style: const TextStyle(fontSize: 17, color: Colors.black54),
+            style: const TextStyle(
+              fontSize: 17,
+              color: Colors.black54,
+            ),
           ),
-
+          const SizedBox(height: 4),
+          //  Texto de frecuencia
+          Text(
+            _formatFrequency(reminder),
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.black45,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
           if (reminder.description.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
               reminder.description,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 16, color: Colors.black87),
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.black87,
+              ),
             ),
           ],
         ],
@@ -309,6 +309,20 @@ class _ReminderCard extends StatelessWidget {
     final dia = dt.day;
     final mes = meses[dt.month - 1];
     return "$dia de $mes";
+  }
+
+  static String _formatFrequency(Reminder r) {
+    switch (r.frequency) {
+      case ReminderFrequency.once:
+        return "Una vez";
+      case ReminderFrequency.daily:
+        return "Diario";
+      case ReminderFrequency.weekly:
+        return "Semanal";
+      case ReminderFrequency.custom:
+        final n = r.customIntervalDays ?? 1;
+        return "Cada $n días";
+    }
   }
 
   static Color _getStatusColor(ReminderStatus status) {
@@ -350,14 +364,16 @@ void _confirmDelete(BuildContext context, Reminder reminder) {
             context.read<ReminderController>().deleteReminder(reminder.id);
             Navigator.pop(context);
           },
-          child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          child: const Text(
+            'Eliminar',
+            style: TextStyle(color: Colors.red),
+          ),
         ),
       ],
     ),
   );
 }
 
-/// ESTADO VACÍO
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 

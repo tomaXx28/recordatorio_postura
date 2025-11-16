@@ -17,7 +17,8 @@ class ReminderEvaluator {
     final now = DateTime.now();
 
     final vencidos = reminders.where((r) {
-      return r.status == ReminderStatus.pending &&
+      return (r.status == ReminderStatus.pending ||
+              r.status == ReminderStatus.skipped) &&
           r.dateTime.isBefore(now);
     }).toList();
 
@@ -55,7 +56,7 @@ class ReminderEvaluator {
               onPressed: () {
                 Navigator.of(dialogCtx).pop();
                 ReminderEvaluator.isDialogOpen = false;
-                
+
                 controller.markAsCompleted(reminder.id);
               },
               child: const Text(

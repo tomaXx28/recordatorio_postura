@@ -1,9 +1,10 @@
 enum ReminderStatus { pending, completed, skipped }
+
 enum ReminderFrequency {
-  once,      
-  daily,     
-  weekly,    
-  custom,   
+  once,      // Una vez
+  daily,     // Diario
+  weekly,    // Semanal
+  custom,    // Cada n°dias
 }
 
 String frequencyToString(ReminderFrequency frequency) {
@@ -60,7 +61,7 @@ class Reminder {
   final String id;
   final String title;
   final String description;
-   DateTime dateTime;
+  DateTime dateTime;
   ReminderStatus status;
   ReminderFrequency frequency;
   int? customIntervalDays;
@@ -71,7 +72,7 @@ class Reminder {
     required this.description,
     required this.dateTime,
     this.status = ReminderStatus.pending,
-    this.frequency = ReminderFrequency.once,   
+    this.frequency = ReminderFrequency.once,
     this.customIntervalDays,
   });
 
@@ -81,17 +82,17 @@ class Reminder {
       'title': title,
       'description': description,
       'dateTime': dateTime.toIso8601String(),
-      'status': statusToString(status),            
-      'frequency': frequencyToString(frequency),    
-      'customIntervalDays': customIntervalDays,     
+      'status': statusToString(status),
+      'frequency': frequencyToString(frequency),
+      'customIntervalDays': customIntervalDays,
     };
   }
 
-    factory Reminder.fromJson(Map<String, dynamic> json) {
+  factory Reminder.fromJson(Map<String, dynamic> json) {
     final rawStatus = json['status'];
     String statusString;
+
     if (rawStatus is int) {
-      // Migración desde versión vieja (0,1,2,…)
       switch (rawStatus) {
         case 1:
           statusString = 'completed';
@@ -108,7 +109,7 @@ class Reminder {
       statusString = 'pending';
     }
 
-    // 👇 frecuencia (puede venir nula si es un registro antiguo)
+    // frecuencia (puede venir nula si es un registro antiguo)
     final freqString = json['frequency'] as String?;
 
     return Reminder(
@@ -117,9 +118,8 @@ class Reminder {
       description: json['description'],
       dateTime: DateTime.parse(json['dateTime']),
       status: stringToStatus(statusString),
-      frequency: stringToFrequency(freqString),          // 👈 NUEVO
-      customIntervalDays: json['customIntervalDays'],    // 👈 NUEVO
+      frequency: stringToFrequency(freqString),
+      customIntervalDays: json['customIntervalDays'],
     );
   }
-
 }

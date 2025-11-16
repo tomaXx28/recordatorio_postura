@@ -26,9 +26,6 @@ class PostureRemindersApp extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------
-// THEME ACCESIBLE PARA ADULTOS MAYORES
-// ---------------------------------------------------------
 final ThemeData _accessibleTheme = ThemeData(
   useMaterial3: true,
   scaffoldBackgroundColor: const Color(0xFFF9F6FF),
@@ -59,9 +56,8 @@ final ThemeData _accessibleTheme = ThemeData(
   ),
 );
 
-// ---------------------------------------------------------
-// CONTROL DE SESIÓN — MUESTRA LOGIN O HOME
-// ---------------------------------------------------------
+
+
 class _AuthGate extends StatelessWidget {
   const _AuthGate();
 
