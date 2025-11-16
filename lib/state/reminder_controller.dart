@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:recordatorios_postura/services/firebase_services.dart';
+import 'package:recordatorios_postura/services/notificaciones_services.dart';
 import '../models/reminder.dart';
 import '../services/local_storage_service.dart';
 
@@ -61,12 +62,35 @@ class ReminderController extends ChangeNotifier {
     }
   }
 
+  Future<void> delayAndSkip(Reminder reminder) async {
+  // Mover 5 minutos adelante
+  reminder.dateTime = DateTime.now().add(const Duration(minutes: 5));
+
+  // IMPORTANTE: volverlo a pendiente
+  reminder.status = ReminderStatus.pending;
+
+  notifyListeners();
+  await _local.saveReminders(_reminders);
+  await _firebase.saveReminder(reminder);
+}
+
+
+Future<void> updateStatus(String id, ReminderStatus status) async {
+  final reminder = _reminders.firstWhere((r) => r.id == id);
+  reminder.status = status;
+
+  notifyListeners();
+  await _local.saveReminders(_reminders);
+  await _firebase.saveReminder(reminder);
+}
+
   // -----------------------------------------
   // CRUD
   // -----------------------------------------
   Future<void> addReminder(Reminder reminder) async {
     _reminders.add(reminder);
     notifyListeners();
+    await NotificationService().schedule(reminder);
 
     await _local.saveReminders(_reminders);
     await _firebase.saveReminder(reminder);
@@ -79,6 +103,7 @@ class ReminderController extends ChangeNotifier {
     _reminders[index] = updated;
     notifyListeners();
 
+    await NotificationService().schedule(updated);
     await _local.saveReminders(_reminders);
     await _firebase.saveReminder(updated);
   }

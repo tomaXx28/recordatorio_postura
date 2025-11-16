@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
+
 import '../models/reminder.dart';
 import '../state/reminder_controller.dart';
-import 'package:uuid/uuid.dart';
-import 'package:recordatorios_postura/data/posturas.dart';
+import '../data/posturas.dart'; // 👈 IMPORTANTE PARA AUTOCOMPLETAR
 
 class EditReminderScreen extends StatefulWidget {
   final Reminder? existing;
@@ -16,261 +17,321 @@ class EditReminderScreen extends StatefulWidget {
 
 class _EditReminderScreenState extends State<EditReminderScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _uuid = const Uuid();
-  ReminderFrequency _frequency = ReminderFrequency.once;
-  final TextEditingController _customDaysCtrl = TextEditingController();
-  PosturaItem? _posturaSeleccionada;
 
   late TextEditingController _titleCtrl;
   late TextEditingController _descCtrl;
-
-  late DateTime _selectedDate;
-  late TimeOfDay _selectedTime;
+  DateTime? _selectedDateTime;
 
   bool get isEditing => widget.existing != null;
 
   @override
   void initState() {
     super.initState();
-    if (widget.existing != null) {
-      _frequency = widget.existing!.frequency;
-    }
 
+    // 🔥🔥🔥 AUTOCOMPLETADO restaurado AQUÍ 🔥🔥🔥
     if (isEditing) {
-      final r = widget.existing!;
-      _titleCtrl = TextEditingController(text: r.title);
-      _descCtrl = TextEditingController(text: r.description);
-
-      _selectedDate = r.dateTime;
-      _selectedTime = TimeOfDay.fromDateTime(r.dateTime);
+      // MODO EDICIÓN → respetar valores existentes
+      _titleCtrl = TextEditingController(text: widget.existing!.title);
+      _descCtrl = TextEditingController(text: widget.existing!.description);
+      _selectedDateTime = widget.existing!.dateTime;
     } else {
-      _titleCtrl = TextEditingController();
-      _descCtrl = TextEditingController();
-
-      _selectedDate = DateTime.now();
-      _selectedTime = TimeOfDay.now();
+      // MODO NUEVO → usar postura predefinida (primer item)
+      final postura = ListaPosturas.items.first;
+      _titleCtrl = TextEditingController(text: postura.titulo);
+      _descCtrl = TextEditingController(text: postura.descripcion);
+      _selectedDateTime = DateTime.now();
     }
   }
 
-  Future<void> _pickDate() async {
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDateTime() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
+    final initialDate = _selectedDateTime ?? now;
+
+    final date = await showDatePicker(
       context: context,
+      initialDate: initialDate,
       firstDate: now.subtract(const Duration(days: 1)),
-      lastDate: DateTime(now.year + 2),
-      initialDate: _selectedDate,
+      lastDate: now.add(const Duration(days: 365)),
+      helpText: 'Selecciona la fecha',
     );
 
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
-    }
-  }
+    if (date == null) return;
 
-  Future<void> _pickTime() async {
-    final picked = await showTimePicker(
+    final time = await showTimePicker(
       context: context,
-      initialTime: _selectedTime,
+      initialTime: TimeOfDay.fromDateTime(initialDate),
+      helpText: 'Selecciona la hora',
     );
 
-    if (picked != null) {
-      setState(() => _selectedTime = picked);
-    }
+    if (time == null) return;
+
+    setState(() {
+      _selectedDateTime = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
+    });
   }
 
-  void _save() {
-    if (!_formKey.currentState!.validate()) return;
+  String _formatDateTime(DateTime? dt) {
+    if (dt == null) return 'Sin fecha seleccionada';
 
-    final combinedDateTime = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      _selectedTime.hour,
-      _selectedTime.minute,
-    );
+    const meses = [
+      'enero',
+      'febrero',
+      'marzo',
+      'abril',
+      'mayo',
+      'junio',
+      'julio',
+      'agosto',
+      'septiembre',
+      'octubre',
+      'noviembre',
+      'diciembre',
+    ];
+
+    final dia = dt.day;
+    final mes = meses[dt.month - 1];
+    final hora = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+
+    return '$dia de $mes · $hora:$min hrs';
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedDateTime == null) return;
 
     final controller = context.read<ReminderController>();
+    final id = widget.existing?.id ?? const Uuid().v4();
+
+    final reminder = Reminder(
+      id: id,
+      title: _titleCtrl.text.trim(),
+      description: _descCtrl.text.trim(),
+      dateTime: _selectedDateTime!,
+      status: widget.existing?.status ?? ReminderStatus.pending,
+    );
 
     if (isEditing) {
-      final orig = widget.existing!;
-
-      final updated = Reminder(
-        id: orig.id,
-        title: _titleCtrl.text.trim(),
-        description: _descCtrl.text.trim(),
-        dateTime: combinedDateTime,
-        status: orig.status,
-
-        frequency: _frequency,
-        customIntervalDays: _frequency == ReminderFrequency.custom
-            ? int.tryParse(_customDaysCtrl.text)
-            : null,
-      );
-
-      controller.updateReminder(updated);
+      await controller.updateReminder(reminder);
     } else {
-      final newR = Reminder(
-        id: _uuid.v4(),
-        title: _titleCtrl.text.trim(),
-        description: _descCtrl.text.trim(),
-        dateTime: combinedDateTime,
-
-        frequency: _frequency,
-        customIntervalDays: _frequency == ReminderFrequency.custom
-            ? int.tryParse(_customDaysCtrl.text)
-            : null,
-      );
-
-      controller.addReminder(newR);
+      await controller.addReminder(reminder);
     }
 
-    Navigator.pop(context);
+    if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
+    final titleText = isEditing ? 'Editar recordatorio' : 'Nuevo recordatorio';
+
     return Scaffold(
+      backgroundColor: const Color(0xFFF2F4F7),
+
       appBar: AppBar(
-        title: Text(isEditing ? 'Editar recordatorio' : 'Nuevo recordatorio'),
+        title: Text(
+          titleText,
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        elevation: 3,
+        backgroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Selección de postura predefinida
-              DropdownButtonFormField<PosturaItem>(
-                value: _posturaSeleccionada,
-                decoration: const InputDecoration(
-                  labelText: "Seleccionar postura (opcional)",
-                  border: OutlineInputBorder(),
+
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // -----------------------------------
+                // TÍTULO
+                // -----------------------------------
+
+                // -----------------------------------
+                // SELECCIÓN DE POSTURA
+                // -----------------------------------
+                const Text(
+                  'Selecciona una postura',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                 ),
-                items: ListaPosturas.items
-                    .map(
-                      (p) => DropdownMenuItem(value: p, child: Text(p.titulo)),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() {
-                    _posturaSeleccionada = value;
-                    _titleCtrl.text = value.titulo;
-                    _descCtrl.text = value.descripcion;
-                  });
-                },
-              ),
-              const SizedBox(height: 20),
+                const SizedBox(height: 10),
 
-              TextFormField(
-                controller: _titleCtrl,
-                decoration: const InputDecoration(labelText: 'Título'),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Ingresa un título' : null,
-              ),
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _descCtrl,
-                decoration: const InputDecoration(labelText: 'Descripción'),
-                maxLines: 3,
-              ),
-
-              const SizedBox(height: 24),
-              const Text(
-                'Fecha y hora',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _pickDate,
+                DropdownButtonFormField<PosturaItem>(
+                  value: ListaPosturas.items.firstWhere(
+                    (p) => p.titulo == _titleCtrl.text,
+                    orElse: () => ListaPosturas.items.first,
+                  ),
+                  items: ListaPosturas.items.map((p) {
+                    return DropdownMenuItem(
+                      value: p,
                       child: Text(
-                        '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                        p.titulo,
+                        style: const TextStyle(fontSize: 18),
                       ),
+                    );
+                  }).toList(),
+                  onChanged: (postura) {
+                    if (postura == null) return;
+                    setState(() {
+                      _titleCtrl.text = postura.titulo;
+                      _descCtrl.text = postura.descripcion;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
+                ),
 
-                  const SizedBox(width: 12),
+                const SizedBox(height: 25),
 
-                  Expanded(
-                    child: DropdownButtonFormField<ReminderFrequency>(
-                      value: _frequency,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Frecuencia',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: ReminderFrequency.once,
-                          child: Text('Único'),
-                        ),
-                        DropdownMenuItem(
-                          value: ReminderFrequency.daily,
-                          child: Text('Diario'),
-                        ),
-                        DropdownMenuItem(
-                          value: ReminderFrequency.weekly,
-                          child: Text('Semanal'),
-                        ),
-                        DropdownMenuItem(
-                          value: ReminderFrequency.custom,
-                          child: Text('Personalizado (cada X días)'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setState(() => _frequency = value);
-                      },
-                    ),
-                  ),
+                const Text(
+                  'Título',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 10),
 
-                  const SizedBox(width: 12),
-
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _pickTime,
-                      child: Text(_selectedTime.format(context)),
-                    ),
-                  ),
-                ],
-              ),
-              if (_frequency == ReminderFrequency.custom) ...[
-                const SizedBox(height: 20),
                 TextFormField(
-                  controller: _customDaysCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Cada cuántos días',
-                    border: OutlineInputBorder(),
-                    hintText: 'Ej: 3 (se repetirá cada 3 días)',
+                  controller: _titleCtrl,
+                  style: const TextStyle(fontSize: 20),
+                  decoration: InputDecoration(
+                    hintText: 'Ej: Estirar cuello',
+                    hintStyle: const TextStyle(fontSize: 18),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.all(16),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
-                  validator: (v) {
-                    if (_frequency != ReminderFrequency.custom) return null;
-                    if (v == null || v.trim().isEmpty)
-                      return 'Ingresa un número';
-                    if (int.tryParse(v) == null || int.parse(v) <= 0) {
-                      return 'Debe ser un número válido';
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Escribe un título';
                     }
                     return null;
                   },
                 ),
-              ],
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _save,
-                  child: Text(
-                    isEditing ? 'Guardar cambios' : 'Crear recordatorio',
+
+                const SizedBox(height: 25),
+
+                // -----------------------------------
+                // DESCRIPCIÓN
+                // -----------------------------------
+                const Text(
+                  'Descripción (opcional)',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 10),
+
+                TextFormField(
+                  controller: _descCtrl,
+                  style: const TextStyle(fontSize: 20),
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Ej: Girar hombros hacia atrás 10 veces',
+                    hintStyle: const TextStyle(fontSize: 18),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.all(16),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 30),
+
+                // -----------------------------------
+                // FECHA Y HORA
+                // -----------------------------------
+                const Text(
+                  'Fecha y hora',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+
+                GestureDetector(
+                  onTap: _pickDateTime,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 18,
+                      horizontal: 20,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+
+                    child: Row(
+                      children: [
+                        const Icon(Icons.access_time, size: 30),
+                        const SizedBox(width: 16),
+
+                        Expanded(
+                          child: Text(
+                            _formatDateTime(_selectedDateTime),
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+
+                        const Icon(Icons.edit, size: 26),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+
+                // -----------------------------------
+                // BOTÓN GUARDAR
+                // -----------------------------------
+                SizedBox(
+                  width: double.infinity,
+                  height: 60,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: _save,
+                    child: Text(
+                      isEditing ? 'Guardar cambios' : 'Crear recordatorio',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 30),
+              ],
+            ),
           ),
         ),
       ),

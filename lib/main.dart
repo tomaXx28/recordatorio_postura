@@ -1,28 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
+import 'package:recordatorios_postura/auth/login_sreen.dart';
+import 'package:recordatorios_postura/screens/home_scren.dart';
 import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
-import 'app.dart';
 import 'firebase_options.dart';
-import 'services/notificaciones_services.dart'; // o el nombre real del archivo
+import 'auth/auth_service.dart';
+import 'state/reminder_controller.dart';
+import 'main.dart' show navigatorKey;
 
- final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1) Inicializar zonas horarias
   tz.initializeTimeZones();
-  tz.setLocalLocation(tz.getLocation('America/Santiago'));
 
-  // 2) Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 3) Notificaciones
-  await NotificationService().init();
+  runApp(const RootApp());
+}
 
+class RootApp extends StatelessWidget {
+  const RootApp({super.key});
 
-  // 4) Correr app
-  runApp(const PostureRemindersApp());
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+            create: (_) => ReminderController()),
+      ],
+      child: MaterialApp(
+        navigatorKey: navigatorKey,
+        home: StreamBuilder(
+          stream: AuthService().authStateChanges,
+          builder: (_, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            if (snapshot.hasData) {
+              return const HomeScreen();
+            }
+
+            return const LoginScreen();
+          },
+        ),
+      ),
+    );
+  }
 }
